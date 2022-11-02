@@ -124,25 +124,46 @@ Eco_contrast <- function(PCA.data, inversion, ecotypes){
                 "N" = c(sum(NA1), sum(NA2), 2*n() - (sum(NA1) + sum(NA2))))
   }
   
+  ### Create glm  model
   try({
-    ### Create glm  model
-    mod <- glm(N ~ Ecotype + location + Arrangement + Arrangement:Ecotype + Arrangement:location, 
-               family = poisson(link = "log"), data = tmp3)
+    mod <- glm(N ~ Ecotype + location + Arrangement + Arrangement:location + Arrangement:Ecotype, 
+                              family = poisson(link = "log"), data = tmp3)
     
-    ### Calcualte chi-squared
-    ChiSq <- mod$null.deviance - mod$deviance
-    Pval <- pchisq(ChiSq, df = mod$df.null, lower.tail = FALSE)
+  ### Summarise results in a deviance table
+  DT <- anova(mod)
+  DT2 <- data.frame("predictor" = rownames(DT), 
+                    "deviance" = DT$Deviance,
+                    "df" = DT$Df,
+                    "p-value" = pchisq(DT$Deviance, DT$Df, lower.tail = FALSE),
+                    "residual_deviance" = DT$`Resid. Dev`,
+                    "residual_df" = DT$`Resid. Df`)
     
-    ### Save output as dataframe
-    res <- tmp3
-    res$Inv <- inversion
-    res$chi_sq <- ChiSq
-    res$P.value <- Pval
-    # Re-order columns
+  # Save deviance table
+  if(identical(ecotypes, c("crab", "wave", "barnacle", "tenebrosa"))) Test <- "T1"
+  if(identical(ecotypes, c("crab", "wave"))) Test <- "T2a"
+  if(identical(ecotypes, c("crab", "tenebrosa"))) Test <- "T2b"
+  if(identical(ecotypes, c("wave", "barnacle"))) Test <- "T2c"
+  if(identical(ecotypes, c("saxatilis", "arcana"))) Test <- "T3"
+  if(identical(ecotypes, c("crab", "arcana"))) Test <- "T4a"
+  if(identical(ecotypes, c("wave", "arcana"))) Test <- "T4b"
     
-    res <- res[,c("Inv", "location", "Ecotype", "Arrangement", "N", "chi_sq", "P.value")]
+  write.csv(DT2, paste0(PATH, "Ecotype_contrasts/", Test, ".deviance_table_", inversion, ".csv"),
+              row.names = FALSE, quote = FALSE)
     
-    return(res)
+  ### Significance of the effect of ecotype on arrangement
+  Pval <- pchisq(DT2$deviance[6], df = DT2$df[6], lower.tail = FALSE)
+    
+  ### Save output as dataframe
+  res <- tmp3
+  res$Inv <- inversion
+  res$chi_sq <- DT2$deviance[6]
+  res$df <- DT2$df[6]
+  res$P.value <- Pval
+  # Re-order columns
+    
+  res <- res[,c("Inv", "location", "Ecotype", "Arrangement", "N", "chi_sq", "df", "P.value")]
+    
+  return(res)
   })
   
 }
