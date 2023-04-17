@@ -9,7 +9,7 @@
 ### Preparation
 rm(list = ls())
 dev.off()
-setwd("")
+setwd("/Users/james/Documents/Inversion_detection/")
 options(stringsAsFactors = FALSE)
 
 ### Packages
@@ -17,15 +17,15 @@ library(tidyverse)
 library(ggpubr)
 
 ### Read in PCA results
-LGC6 <- read.csv("PCA_per_inversion/LG6_PCA_of_LGC6.1-2_all.csv")
+LGC6 <- read.csv("PCA_per_inversion/LG6_PCA_of_LGC6.1-2_v2_all.csv")
 colnames(LGC6) <- gsub("LGC6.1.2.", "", colnames(LGC6))
 
-LG6 <- read.csv("PCA_per_inversion/LG6_PCA_of_collinear_all.csv")
+LG6 <- read.csv("PCA_per_inversion/LG6_PCA_of_collinear_v2_all.csv")
 
-LGC17 <- read.csv("PCA_per_inversion/LG17_PCA_of_LGC17.1_all.csv")
+LGC17 <- read.csv("PCA_per_inversion/LG17_PCA_of_LGC17.1_v2_all.csv")
 colnames(LGC17) <- gsub("LGC17.1.", "", colnames(LGC17))
 
-LG17 <- read.csv("PCA_per_inversion/LG17_PCA_of_collinear_all.csv")
+LG17 <- read.csv("PCA_per_inversion/LG17_PCA_of_collinear_v2_all.csv")
 
 ### Add genetic group column to the data
 GG_labeler <- function(data){
@@ -46,12 +46,12 @@ LG17 <- GG_labeler(LG17)
 # Colour by genetic group
 GG_col <- c("#008080", "#ffde55", "#c73737", "#4c58e9")
 # Shape by ecotype
-EC_col <- c(19, 17, 19, 15, 18, 8, 19)
+EC_col <- c(1, 17, 8, 1, 15, 18, 19)
 
 
 ### Plot LGC6.1/2
 ggplot(LGC6)+
-  geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.4, size = 6)+
+  geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.8, size = 6)+
   scale_y_continuous(breaks = c(0))+
   scale_x_continuous(breaks = c(0))+
   scale_colour_manual(values = GG_col)+
@@ -66,7 +66,7 @@ ggplot(LGC6)+
 
 ### Plot LG6
 ggplot(LG6)+
-  geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.4, size = 6)+
+  geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.8, size = 6)+
   scale_y_continuous(breaks = c(0))+
   scale_x_continuous(breaks = c(0))+
   scale_colour_manual(values = GG_col)+
@@ -81,7 +81,7 @@ ggplot(LG6)+
 
 ### Plot LGC17.1
 ggplot(LGC17)+
-  geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.4, size = 6)+
+  geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.8, size = 6)+
   scale_y_continuous(breaks = c(0))+
   scale_x_continuous(breaks = c(0))+
   scale_colour_manual(values = GG_col)+
@@ -96,7 +96,7 @@ ggplot(LGC17)+
 
 ### Plot LG17
 ggplot(LG17)+
-  geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.4, size = 6)+
+  geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.8, size = 6)+
   scale_y_continuous(breaks = c(0))+
   scale_x_continuous(breaks = c(0))+
   scale_colour_manual(values = GG_col)+
