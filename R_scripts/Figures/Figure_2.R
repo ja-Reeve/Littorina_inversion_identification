@@ -8,58 +8,27 @@
 ### 2022-01-18
 ### Edit 2022-02-25: added randomoization test to top panel
 ### and coloured PCA by heterozygosity
+### Edit 2023-03-07: Clean-up for publication
 
 ### Preparation
 rm(list = ls())
 dev.off()
-setwd("")
-options(stringsAsFactors = FALSE)
+setwd("/Users/james/Documents/Inversion_detection")
+options(stringsAsFactors = FALSE, check.names = FALSE)
 
 ### Packages
 library(tidyverse)
 library(ggpubr)
 
-#### A: Access sample information ####
-### Sample information
-sample_info <- read.csv("/PATH/Sample_information.csv", 
-                        sep=";", check.names = FALSE)
-
-### Changing some ecotype labels to reduce number of ecotypes
-### These labels are simplfications I made to Sean's original notes
-sample_info[sample_info$Ecotype %in% c("Crab", "crabish"), "Ecotype"] <- "crab" # Rename crab ecotype
-sample_info[sample_info$Ecotype == "Wave", "Ecotype"] <- "wave" # Rename wave ecotype
-sample_info[sample_info$Ecotype == "barnacle(ish)", "Ecotype"] <- "barnacle" # Rename barnacle ecotype
-sample_info[sample_info$Ecotype %in% c("", "?", "midshore (no ecotypes)"), "Ecotype"] <- "other" # Rename everything else
-# "arcana" and "compressa" are added as ecotypes
-sample_info[sample_info$Species == "arcana", "Ecotype"] <- "arcana" # rename to arcana
-sample_info[sample_info$Species == "compressa", "Ecotype"] <- "compressa" # rename to compressa
-
-### Split into three chohorts
-#      Sp = Spanish Littorina saxatilis
-#      sax = Littorina saxatilis from all other sites (i.e. Northern cohort)
-#      arc = Littorina arcana
-# Note: Spain/North split is based on the phylogenetic analysis of Sean Stankowski
-
-# Separate species
-# Note: "CEA_Larc_F_1" was mislabelled as L. arcana
-sax_IDs <- as.character(sample_info[sample_info$Species %in% c("saxatilis", "saxatilis?", "saxailis?"), "Sample_ID"])
-arc_IDs <- as.character(sample_info[sample_info$Species == "arcana" & 
-                                      sample_info$Sample_ID != "CEA_Larc_F_1", "Sample_ID"])
-
-# Separate saxatilis cohorts into Spanish IDs
-Sp_IDs <- as.character(sample_info[sample_info$Country == "Spain", "Sample_ID"])
-# Remove Spanish samples from sax_IDs
-sax_IDs <- sax_IDs[!(sax_IDs %in% Sp_IDs)]
-
-#### B: Create functions to access data and generate plots ####
+#### A: Create functions to access data and generate plots ####
 ### Get lengths of each linkage group
 LG <- read.table("ConsensusMap.v2.txt", header = T)
 LGmax <- LG %>% group_by(LG) %>% summarise(maxMP = max(avgMP))
 
 ### 1.1 Function to get average heterozygosities after a split for each sample
-extract.heterzygosities <- function(linkage.group, cohort, snail.ID){
+extract.heterzygosities <- function(linkage.group, genetic.group, snail.ID){
   # Access split scores
-  Hsplit <- read.csv(paste0("split_function_results/Hsplit_betaBin_", linkage.group, "_", cohort, ".csv"), header = TRUE)
+  Hsplit <- read.csv(paste0("split_function_results/Hsplit_betaBin_", linkage.group, "_v2_", genetic.group, ".csv"), header = TRUE)
   Hsplit <- Hsplit[Hsplit$SnailID == snail.ID,] # Subset to given individual
   
   Xrows <- grep("S3", Hsplit$split_name) # List of rows with 3rd level split data
@@ -83,14 +52,14 @@ extract.heterzygosities <- function(linkage.group, cohort, snail.ID){
 }
 
 ### 1.2 Function for heterozygosity split plots
-plot.split.function <- function(linkage.group, cohort){
+plot.split.function <- function(linkage.group, genetic.group){
   ## 1.2.1: Get data
   # Heterozygosity scores
-  Het <- read.csv(paste0("Heterozygosity_scores/", linkage.group,"_Het_",cohort,".csv"), header = TRUE)
+  Het <- read.csv(paste0("Heterozygosity_scores/", linkage.group,"_Het_v2_",genetic.group,".csv"), header = TRUE)
   
   # Calculate average heterozygosity between splits
   IDs <- unique(Het$SnailIDs)
-  Hsplit <- lapply(IDs, function(i){extract.heterzygosities(linkage.group, cohort, snail.ID = i)})
+  Hsplit <- lapply(IDs, function(i){extract.heterzygosities(linkage.group, genetic.group, snail.ID = i)})
   Hsplit <- do.call(rbind.data.frame, Hsplit)
   
   ## 1.2.2: Plot heterozygosity scores and split function results
@@ -108,12 +77,12 @@ plot.split.function <- function(linkage.group, cohort){
 }
 
 ### 2 Function to plot PCA per map position
-plot.PCA.function <- function(linkage.group, cohort){
+plot.PCA.function <- function(linkage.group, genetic.group){
   # Access PCA data
-  PCA <- read.table(paste0("PCA_per_window/", linkage.group, "_PCA_1cMwind_", cohort, ".txt"), header = TRUE)
+  PCA <- read.table(paste0("PCA_per_window/", linkage.group, "_PCA_1cMwind_v2_", genetic.group, ".txt"), header = TRUE)
   
   # Access heterozygosity data
-  Het <- read.csv(paste0("Heterozygosity_scores/", linkage.group,"_Het_",cohort,".csv"), header = TRUE)
+  Het <- read.csv(paste0("Heterozygosity_scores/", linkage.group,"_Het_v2_", genetic.group,".csv"), header = TRUE)
   
   # Calculate heterozygosity of each window
   PCA$Het <- NA
@@ -125,7 +94,7 @@ plot.PCA.function <- function(linkage.group, cohort){
   };rm(i)
   
   ## Plot PC1 along the linakge map
-  res_plot <- ggplot(PCA, aes(x = pos, y = adjPC1, alpha = PC1_percent_var, 
+  res_plot <- ggplot(PCA, aes(x = pos - 0.5, y = adjPC1, alpha = PC1_percent_var, # Adjust pos by 0.5 to shift points to edge of window
                               group = Snail_ID, colour = Het))+
     geom_point(size = 0.5)+
     geom_line(size = 0.2)+
@@ -142,9 +111,9 @@ plot.PCA.function <- function(linkage.group, cohort){
 }
 
 ### 3 Merge heterozygosity & PCA plot
-plot.both.figures <- function(linkage.group, cohort){
+plot.both.figures <- function(linkage.group, genetic.group){
   # Plot 1: number of individuals with P-vale < 0.01
-  Splits <- read.csv(paste0("split_function_results/Hsplit_betaBin_", linkage.group, "_", cohort, ".csv"), header = TRUE)
+  Splits <- read.csv(paste0("split_function_results/Hsplit_betaBin_", linkage.group, "_v2_", genetic.group, ".csv"), header = TRUE)
   Splits <- Splits[Splits$best_model == "Split",]
   
   tmp <- Splits %>% group_by(pos) %>% summarise("n" = n())
@@ -153,7 +122,7 @@ plot.both.figures <- function(linkage.group, cohort){
     left_join(., tmp, by = "pos") %>%
     mutate_each(~replace(., which(is.na(.)), 0))
   # Remove any positions without contigs
-  Het <- read.csv(paste0("Heterozygosity_scores/", linkage.group,"_Het_",cohort,".csv"), header = TRUE)
+  Het <- read.csv(paste0("Heterozygosity_scores/", linkage.group,"_Het_v2_", genetic.group,".csv"), header = TRUE)
   tmp2 <- tmp2[tmp2$pos %in% unique(round(Het$avgMP)), ]
   
   # Randomization test
@@ -167,11 +136,10 @@ plot.both.figures <- function(linkage.group, cohort){
   
   # The plot
   p1 <- ggplot(tmp2)+
-    geom_col(aes(x = pos, y = n),# fill = n > quantile(Rdn_means, 0.95)), 
+    geom_col(aes(x = pos, y = n),
              width = 0.8, show.legend = FALSE)+
     lims(x = c(0, max(tmp2$pos)), 
-         y = c(0, 25))+#length(unique(Splits$SnailID)))/2)+
-    #scale_fill_manual(values = c("grey", "red"))+
+         y = c(0, 25))+
     theme(panel.background = element_blank(),
           axis.line = element_line(colour = "grey50"),
           axis.text.y = element_text(size = 8),
@@ -179,13 +147,13 @@ plot.both.figures <- function(linkage.group, cohort){
           axis.title = element_blank())
   
   ## Plot 2: Heterozygosity splits
-  p2 <- plot.split.function(linkage.group, cohort)
+  p2 <- plot.split.function(linkage.group, genetic.group)
   
   ## Plot3 : PCA per map position
-  p3 <- plot.PCA.function(linkage.group, cohort)
+  p3 <- plot.PCA.function(linkage.group, genetic.group)
   
   ## Plot 4: inversion positions
-  Invs <- read.csv("/PATH/Inversion_positions_on_new_map_v2.csv")
+  Invs <- read.csv("/Users/james/Dropbox (Personal)/PhD/Inversion_positions_on_new_map_v2.csv")
   Invs <- Invs[Invs$LG == linkage.group,]
   p4 <- if(nrow(Invs) > 0){
     ggplot()+
@@ -211,38 +179,36 @@ plot.both.figures <- function(linkage.group, cohort){
   return(res_plot)
 }
 
-#### C: Generate final plot for each LG & cohort ####
-PATH <- "/PATH/TO/PLOTS/"
+
+#### B: Generate final plot for each LG & genetic group ####
+PATH <- "/Users/james/Dropbox (Personal)/PhD/Inv_detection_manuscript/"
 # Save plot of LG8
-p1 <- plot.both.figures(linkage.group = "LG8", cohort = "sax")
+p1 <- plot.both.figures(linkage.group = "LG8", genetic.group = "NS")
 ggsave("Fig2a.tiff", plot = p1, "tiff", PATH, width = 14.1, height = 20, units = "cm")
 # Save plot of LG14
-p2 <- plot.both.figures(linkage.group = "LG14", cohort = "sax")
+p2 <- plot.both.figures(linkage.group = "LG14", genetic.group = "NS")
 ggsave("Fig2b.tiff", plot = p2, "tiff", PATH, width = 14.1, height = 20, units = "cm")
 # Save plot of LG17
-p3 <- plot.both.figures(linkage.group = "LG17", cohort = "sax")
+p3 <- plot.both.figures(linkage.group = "LG17", genetic.group = "NS")
 ggsave("Fig2c.tiff", plot = p3, "tiff", PATH, width = 14.1, height = 20, units = "cm")
 
 ### Plot all in R
-fig2 <- ggarrange(plot.both.figures(linkage.group = "LG8", cohort = "sax"),
-          plot.both.figures(linkage.group = "LG14", cohort = "sax"),
-          plot.both.figures(linkage.group = "LG17", cohort = "sax"),
-          nrow = 1, ncol = 3, common.legend = TRUE, legend = "bottom")
+fig2 <- ggarrange(p1, p2, p3, nrow = 1, ncol = 3, common.legend = TRUE, legend = "bottom")
 
-#tiff("/plots/Figure_2.tiff", width = 18, height = 16, units = "cm", res = 200)
+tiff(paste0(PATH, "Figure_2.tiff"), width = 18, height = 16, units = "cm", res = 200)
 
 annotate_figure(fig2, top = text_grob("Northern Littorina saxatilis", size = 16),
                 bottom = text_grob("Linkage map position (cM)", size = 14))
 
-#dev.off()
+dev.off()
 
-#### Plot other LGs & cohorts in supplementary materials ####
-PATH2 <- "/PATH/TO/SUPP_MAT_PLOTS/"
+#### C: Plot other LGs & genetic groups in supplementary materials ####
+PATH2 <- "/Users/james/Documents/Inversion_detection/plots/Supp_mat_plots"
 
-sapply(c("sax", "arc", "Sp"), function(i){
+sapply(c("NS", "arc", "Sp"), function(i){
   sapply(paste0("LG", 1:17), function(ii){
-    p <- plot.both.figures(linkage.group = ii, cohort = i)
-    ggsave(paste0("Supplementary_Fig_", i, ":", ii, ".tiff"), 
+    p <- plot.both.figures(linkage.group = ii, genetic.group = i)
+    ggsave(paste0("Supplementary_Fig_", i, ":", ii, "_v2.tiff"), 
            plot = p, "tiff", PATH2, width = 14.3, height = 20, units = "cm")
     })
   })
