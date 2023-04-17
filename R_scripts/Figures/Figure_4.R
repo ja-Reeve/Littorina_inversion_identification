@@ -11,47 +11,57 @@
 ### Preparation
 rm(list = ls())
 dev.off()
-setwd("")
+setwd("/Users/james/Documents/Inversion_detection/")
 options(stringsAsFactors = FALSE)
 
 ### Packages
 library(tidyverse)
 library(ggpubr)
 
-### Parameter
-thresh <- 0.01 # FDR threshold for all tests
+### Parameters
+INVs <- c("LGC1.1", "LGC1.2", "LGC2.1", "LGC4.1", "LGC5.1", "LGC6.1-2", "LGC7.1", 
+          "LGC7.2", "LGC9.1", "LGC9.2", "LGC10.1", "LGC10.2", "LGC11.1", "LGC12.1", 
+          "LGC12.2", "LGC12.3", "LGC12.4", "LGC14.1", "LGC14.2", "LGC14.3", "LGC17.1")
 
-#### A: Access the test results ####
-### Acess data
-T1 <- read.csv(paste0("Ecotype_contrasts/", list.files("Ecotype_contrasts", pattern = "T1")[2]))
-T1$Test <- "T1" # Add test name
+#### A: Access data ####
+### PCA results
+Nsax <- lapply(INVs, function(inv){
+  LG <- gsub("C", "", gsub("[.].*", "", inv))
+  dat <- read.csv(paste0("PCA_per_inversion/", LG, "_PCA_of_", inv, "_v2_NS.csv"), header = TRUE)
+  # Renaming columns to remove inversion prefix
+  colnames(dat) <- gsub(paste0(inv,"."), "", colnames(dat))
+  return(dat)
+})
+# Add inversion as listnames
+names(Nsax) <- INVs
+# Remove inversions with uncertain clustering
+Nsax2 <- Nsax[which(!(names(Nsax) %in% c("LGC9.2", "LGC14.3")))]
 
-T2a <- read.csv(paste0("Ecotype_contrasts/", list.files("Ecotype_contrasts", pattern = "T2a")[2]))
-T2a$Test <- "T2a" # Add test name
 
-T2b <- read.csv(paste0("Ecotype_contrasts/", list.files("Ecotype_contrasts", pattern = "T2b")[2]))
-T2b$Test <- "T2b" # Add test name
+### Access ecotype contrast data
+CW <- read.csv("Ecotype_contrasts/crab_wave_contrast.v5.csv")
+CW$Test <- "crab-wave" # Add test name
 
-T2c <- read.csv(paste0("Ecotype_contrasts/", list.files("Ecotype_contrasts", pattern = "T2c")[2]))
-T2c$Test <- "T2c" # Add test name
+WB <- read.csv("Ecotype_contrasts/wave_barnacle_contrast.v5.csv")
+WB$Test <- "wave-barnacle" # Add test name
+
+# Double inversions
+CW_dbInv <- read.csv("Ecotype_contrasts/crab_wave_contrast_doubleInv.v5.csv")
+CW_dbInv$Test <- "crab-wave_dbInv"
+
+WB_dbInv <- read.csv("Ecotype_contrasts/wave_barnacle_contrast_doubleInv.v5.csv")
+WB_dbInv$Test <- "wave-barnacle_dbInv"
 
 
 #### B: Panel A - PCA of genotypes ####
 
-### Get PCA data for Northern saxatilis - for select inversions
-# LGC6.1/2
-LG6 <- read.csv("PCA_per_inversion/LG6_PCA_of_LGC6.1-2_sax.csv")
-colnames(LG6) <- gsub("LGC6.1.2.", "", colnames(LG6))
-
-# LGC17.1
-LG17 <- read.csv("PCA_per_inversion/LG17_PCA_of_LGC17.1_sax.csv")
-colnames(LG17) <- gsub("LGC17.1.", "", colnames(LG17))
-
 ### Create PCA plots
 # LGC6.1/2
-pLG6 <- ggplot(LG6)+
+pLG6 <- ggplot(Nsax2[["LGC6.1-2"]])+
   geom_point(aes(Axis1, Axis2, colour = genotype))+
-  annotate("text", x = sum(range(LG6$Axis1))/2, y = max(LG6$Axis2)*0.9, 
+  annotate("text", 
+           x = sum(range(Nsax2[["LGC6.1-2"]]$Axis1))/2,
+           y = max(Nsax2[["LGC6.1-2"]]$Axis2)*0.9, 
            label = "LGC6.1/2", fontface = "bold", size = 8)+
   scale_color_manual(values = c("#1f78b4", "#a6cee3", "#33a02c", "#b2df8a", "#fb9a99", "#e31a1c"))+
   theme(panel.background = element_blank(),
@@ -62,9 +72,10 @@ pLG6 <- ggplot(LG6)+
         legend.position = "none")
 
 # LGC17.1
-pLG17 <- ggplot(LG17)+
+pLG17 <- ggplot(Nsax2[["LGC17.1"]])+
   geom_point(aes(Axis1, Axis2, colour = genotype))+
-  annotate("text", x = sum(range(LG17$Axis1))/2, y = max(LG17$Axis2)*0.9, 
+  annotate("text", x = sum(range(Nsax2[["LGC17.1"]]$Axis1))/2,
+           y = max(Nsax2[["LGC17.1"]]$Axis2)*0.9, 
            label = "LGC17.1", fontface = "bold", size = 8)+
   scale_color_manual(values = c("#1f78b4", "#a4db77ff", "#e31a1c"))+
   theme(panel.background = element_blank(),
@@ -77,18 +88,46 @@ pLG17 <- ggplot(LG17)+
 ### Multi-panel plot
 p1 <- ggarrange(pLG6, pLG17, ncol = 1, nrow = 2)
 
-#### C: Panel B - Arragement frequency pie charts ####
+#### C: Panel B - Arrangement frequency pie charts ####
 
-# Create an ordered list of inversions
-INVs <- unique(T1$Inv)
+# Function to count inversions
+inv_counts <- lapply(names(Nsax2), function(inv){
+  tmp <- Nsax2[[inv]]
+  
+  if(length(unique(tmp$genotype)) <= 3){
+    # 3 cluster inversions
+    tmp2 <- tmp %>% group_by(Ecotype) %>%
+      summarise(R = 2*sum(genotype == "RR") + sum(genotype == "RA"),
+                A = 2*sum(genotype == "AA") + sum(genotype == "RA"),
+                N = 2*n(),
+                Inv = inv) %>% 
+      pivot_longer(R:A, names_to = "Arrangement", values_to = "Count")
+    } else {
+    # 6 cluster inversions
+    tmp2 <- tmp %>% group_by(Ecotype) %>%
+      summarise(R = 2*sum(genotype == "RR") + sum(genotype == "RA1") + sum(genotype == "RA2"),
+                A1 = 2*sum(genotype == "A1A1") + sum(genotype == "RA1") + sum(genotype == "A1A2"),
+                A2 = 2*sum(genotype == "A2A2") + sum(genotype == "RA2") + sum(genotype == "A1A2"),
+                N = 2*n(),
+                Inv = inv) %>% 
+      pivot_longer(R:A2, names_to = "Arrangement", values_to = "Count")}
+  return(tmp2)
+})
+
+inv_counts <- do.call(rbind.data.frame, inv_counts)
+
+# Set order for Ecotype and Inv
+inv_counts$Inv <- factor(inv_counts$Inv, levels = names(Nsax2))
+inv_counts$Ecotype <- factor(inv_counts$Ecotype,
+                             levels = c("Crab", "Wave", "Barnacle", "Brackish", "Other"))
 
 # Plot
-p2 <- ggplot(T1 %>% group_by(Inv, Ecotype, Arrangement) %>% summarise(Nt = sum(N)))+
-  geom_bar(aes(x = "", y = Nt, fill = Arrangement), 
-           width = 1, stat = "identity", position = "fill")+
+p2 <- ggplot(inv_counts)+
+  geom_bar(aes(x = "", y = Count, fill = Arrangement), 
+           stat = "identity", position = "fill")+
   coord_polar("y", start = 0)+
-  facet_grid(factor(Inv, levels = INVs) ~ Ecotype, switch = "both")+
-  scale_fill_manual(values = c("#1f78b4", "#33a02c", "#e31a1c"))+
+  facet_grid(rows = vars(Inv), cols = vars(Ecotype), switch = "both")+
+  scale_fill_manual(values = c("#1f78b4", "#1f78b4", "#33a02c", "#e31a1c"))+
   theme_bw()+
   theme(panel.spacing = unit(0, "cm"),
         axis.text = element_blank(),
@@ -102,19 +141,35 @@ p2 <- ggplot(T1 %>% group_by(Inv, Ecotype, Arrangement) %>% summarise(Nt = sum(N
 #### D: Panel C - Tile plot of test results ####
 
 p3 <- ggplot()+
-  geom_tile(data = T1, aes(x = "T1: Ecotype contrast", y = Inv, fill = adj.P.value < thresh), col = "grey50")+
-  geom_tile(data = T2a, aes(x = "T2a: crab-wave", y = Inv, fill = adj.P.value < thresh), col = "grey50")+
-  geom_tile(data = T2b, aes(x = "T2b: crab-brackish", y = Inv, fill = adj.P.value < thresh), col = "grey50")+
-  geom_tile(data = T2c, aes(x = "T2c: wave-barnacle", y = Inv, fill = adj.P.value < thresh), col = "grey50")+
-  geom_vline(xintercept = 1.5, col = "black")+
-  scale_fill_manual(values = c("grey75", "grey25"), guide = "none")+
-  scale_y_discrete(limits = rev(INVs))+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-        axis.title = element_blank())
+  geom_point(data = CW, aes(x = "A", y = Inv, 
+                            fill = Effect != "NULL", 
+                            colour = Effect == "INT", 
+                            pch = Effect == "INT"), size = 3)+
+  geom_point(data = WB, aes(x = "B", y = Inv, 
+                            fill = Effect != "NULL", 
+                            colour = Effect == "INT", 
+                            pch = Effect == "INT"), size = 3)+
+  geom_point(data = CW_dbInv, aes(x = "C", y = Inv, 
+                            fill = Effect != "NULL", 
+                            colour = Effect == "INT", 
+                            pch = Effect == "INT"), size = 3)+
+  geom_point(data = WB_dbInv, aes(x = "D", y = Inv, 
+                            fill = Effect != "NULL", 
+                            colour = Effect == "INT", 
+                            pch = Effect == "INT"), size = 3)+
+  scale_fill_manual(values = c("white", "#9ecae1"))+
+  scale_colour_manual(values = c("grey50", "#3182bd"))+
+  scale_shape_manual(values = c(21, 22))+
+  scale_y_discrete(limits = rev(names(Nsax2)))+
+  scale_x_discrete(labels = rep(c("crab-wave", "wave-barnacle"), 2))+
+  theme_classic()+
+  theme(panel.grid.major.x = element_line(colour = "grey80", size = 1),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        axis.title = element_blank(),
+        legend.position = "none")
 
 #### E: Save panels as individual images ####
-PATH <- "/PATH/to/PLOTS"
+PATH <- "/Users/james/Dropbox (Personal)/PhD/Inv_detection_manuscript/"
 # Save p1
 ggsave("Fig4a.tiff", plot = p1, "tiff", PATH, width = 10, height = 16, units = "cm")
 # Save p2
