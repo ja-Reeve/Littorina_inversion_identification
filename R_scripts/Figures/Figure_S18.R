@@ -1,9 +1,9 @@
-### Supplementray plots for PCA plots - with colour scale for genetic groups and shape scale for ecotypes ####
+### Plot supp mat for geographic divergence PCA plots ####
 
 ### Preparation
 rm(list = ls())
 dev.off()
-setwd("")
+setwd("/Users/james/Documents/Inversion_detection/")
 options(stringsAsFactors = FALSE)
 
 ### Packages
@@ -19,22 +19,17 @@ INVs <- c("LGC1.1", "LGC1.2", "LGC2.1", "LGC4.1", "LGC5.1", "LGC6.1-2", "LGC7.1"
 # Colour by genetic group
 GG_col <- c("#008080", "#ffde55", "#c73737", "#4c58e9")
 # Shape by ecotype
-EC_col <- c(19, 17, 19, 15, 18, 8, 19)
+EC_col <- c(1, 17, 8, 1, 15, 18, 19)
 
 
 ### PCA plot function
 PCA.plotter <- function(LG, inversion = "collinear"){
   
   ## Download PCA data
-  dat <- read.csv(paste0("PCA_per_inversion/", LG, "_PCA_of_", inversion, "_all.csv"), header = TRUE)
-  # Renaming columns to remove inversion prefix
-  colnames(dat) <- if(inversion == "LGC6.1-2"){
-    gsub("LGC6.1.2.", "", colnames(dat))
-  } else {
-    gsub(paste0(inversion,"."), "", colnames(dat))}
+  dat <- read.csv(paste0("PCA_per_inversion/", LG, "_PCA_of_", inversion, "_v2_all.csv"), header = TRUE)
   
   ## Download percentage varaince on PCA axes
-  Pvar <- read.csv("PCA_per_inversion/Percentage_varaince_explained.csv", header = TRUE)
+  Pvar <- read.csv("PCA_per_inversion/Percentage_varaince_explained_v2.csv", header = TRUE)
   Pvar <- Pvar[Pvar$LG == LG & Pvar$Inv == ifelse(inversion == "collinear", "colinear", inversion),]
   
   ## Add genetic group column to the PCA data
@@ -46,24 +41,25 @@ PCA.plotter <- function(LG, inversion = "collinear"){
   
   ## PCA plot
   P <- ggplot(dat)+
-    geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.4, size = 6)+
+    geom_point(aes(Axis1, Axis2, colour = GenGroup, pch = Ecotype), alpha = 0.8, size = 6)+
     scale_y_continuous(breaks = c(0))+
     scale_x_continuous(breaks = c(0))+
     scale_colour_manual(values = GG_col)+
     scale_shape_manual(values = EC_col)+
     labs(x = paste0("PC1 (", Pvar$Axis1, "%)"), y = paste0("PC2 (", Pvar$Axis2, "%)"))+
-    coord_fixed(ratio = Pvar$Axis2 / Pvar$Axis1)+
+    #coord_fixed(Pvar$Axis2 / Pvar$Axis1)+
     theme(panel.background = element_blank(),
           panel.border = element_rect(colour = "grey", fill = NA, size = 2),
           panel.grid = element_line(colour = "lightgrey"),
-          axis.title = element_text(size = 10, colour = "grey50"),
+          axis.title = element_text(size = 24, colour = "grey50"),
           axis.ticks = element_blank(),
           axis.text = element_blank(),
-          legend.position = "none")
+          legend.position = "none",
+          plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt"),
+          panel.spacing = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt"))
     
     return(P)
 }
 
-
-PCA.plotter("LG1")
-
+### Cange to the inversion and LG you want to plot:
+PCA.plotter("LG1", "LGC1.1")
