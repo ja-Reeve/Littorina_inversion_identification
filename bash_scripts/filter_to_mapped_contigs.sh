@@ -1,5 +1,8 @@
 #!/bin/bash -ve
 ### Script written by Sean Stankowski for ShARC cluster
+### Note: the same script was used to filter by LG in the final manuscript.
+### This is simply done by reducing the list of chromosomes to just those
+### on the focal linakge group.
 ### 2021-05-15
 
 
