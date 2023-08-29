@@ -284,8 +284,7 @@ PC_scatter <- function(data, map.positions){
   })
   
   # Multi-panel plot
-  PCscatt <- ggarrange(plotlist = Plots, left = "PC2", bottom = "PC1", common.legend = TRUE)
-  PCscatt <- annotate_figure(PCscatt,
+  PCscatt <- annotate_figure(ggarrange(plotlist = Plots, common.legend = TRUE),
                              left = text_grob("PC2", face = "bold", size = 24, rot = 90),
                              bottom = text_grob("PC1", face = "bold", size = 24))
   
